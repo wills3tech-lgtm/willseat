@@ -1,0 +1,702 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WILLSEAT — Contemporary Dining & 360° Experience</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Babel Standalone (Transpiles JSX in browser) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Three.js (For 360° Panorama WebGL Scene) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Lucide React Icons -->
+  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              espresso: '#120d0a',
+              cocoa: '#1e1611',
+              charcoal: '#2a221c',
+              cream: '#f9f6f0',
+              ivory: '#f4efe6',
+              gold: '#d4af37',
+              mutedGold: '#b89248',
+              accent: '#e67e22'
+            }
+          },
+          fontFamily: {
+            serif: ['Playfair Display', 'Georgia', 'serif'],
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+    body {
+      background-color: #120d0a;
+      color: #f9f6f0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-serif {
+      font-family: 'Playfair Display', Georgia, serif;
+    }
+
+    /* Glassmorphism Styling */
+    .glass-panel {
+      background: rgba(30, 22, 17, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    .glass-pill {
+      background: rgba(18, 13, 10, 0.65);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(249, 246, 240, 0.1);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #120d0a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2a221c;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #b89248;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const Lucide = window.LucideReact || {};
+
+    const Icon = ({ name, size = 20, className = "" }) => {
+      const IconComponent = Lucide[name];
+      if (!IconComponent) return null;
+      return <IconComponent size={size} className={className} />;
+    };
+
+    const CONFIG = {
+      REST_NAME: "Willseat",
+      TAGLINE: "Contemporary Dining",
+      PHONE: "0708 868 6355",
+      EMAIL: "devwillstech@gmail.com",
+      LOCATION: "Lagos, Nigeria"
+    };
+
+    const INITIAL_MENU = [
+      { id: '1', name: 'Smoked Peppered Duck Breast', category: 'Starters', price: 18500, description: 'Succulent slow-roasted duck breast served with caramelized plantain puree and wild hibiscus reduction.', image: 'https://images.unsplash.com/photo-1514944288352-fffac99f0bdf?auto=format&fit=crop&w=800&q=80', isAvailable: true, isDietary: 'Gluten-Free' },
+      { id: '2', name: 'Charred Octopus & Tiger Prawns', category: 'Starters', price: 21000, description: 'Grilled Atlantic octopus tentacles, jumbo prawns, chili-garlic emulsion, and crunchy shallots.', image: 'https://images.unsplash.com/photo-1535400255456-984241443b29?auto=format&fit=crop&w=800&q=80', isAvailable: true, isDietary: 'Seafood' },
+      { id: '3', name: '28-Day Dry-Aged Ribeye', category: 'Main Courses', price: 42000, description: 'Prime grain-fed beef cut served with truffle-infused yam fondant and smoked marrow jus.', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80', isAvailable: true, isDietary: 'Signature' },
+      { id: '4', name: 'Pan-Seared Sea Bass in Suya Crust', category: 'Main Courses', price: 36000, description: 'Wild sea bass crusted with aromatic spice blend, served on a bed of braised wild greens.', image: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=800&q=80', isAvailable: true, isDietary: 'Spicy' },
+      { id: '5', name: 'Deconstructed Egusi Tortellini', category: 'Signature Dishes', price: 28000, description: 'Handmade pasta stuffed with braised goat meat in a velvety melon seed bisque.', image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80', isAvailable: true, isDietary: 'Chef Special' },
+      { id: '6', name: 'Gold-Flecked Dark Chocolate Sphere', category: 'Desserts', price: 14500, description: 'Valrhona 70% dark chocolate casing melted with warm palm-wine infused caramel.', image: 'https://images.unsplash.com/photo-1579372786545-d24232daf58c?auto=format&fit=crop&w=800&q=80', isAvailable: true, isDietary: 'Vegetarian' }
+    ];
+
+    const PanoramaViewer = ({ onOpenHotspot }) => {
+      const containerRef = useRef(null);
+      const isDraggingRef = useRef(false);
+      const startMouseRef = useRef({ x: 0, y: 0 });
+      const lonLatRef = useRef({ lon: 0, lat: 0 });
+      const lastUserInteraction = useRef(Date.now());
+      
+      const hotspots = [
+        { id: 'dish', title: 'Signature Culinary Art', yaw: 0.1, pitch: -0.05, category: 'Signature Dishes' },
+        { id: 'bar', title: 'Artisanal Cocktail Bar', yaw: 1.8, pitch: 0.1, category: 'Starters' },
+        { id: 'table', title: 'Private Dining Alcove', yaw: -1.5, pitch: -0.1, category: 'Main Courses' }
+      ];
+
+      const [screenHotspots, setScreenHotspots] = useState([]);
+
+      useEffect(() => {
+        if (!containerRef.current) return;
+        const width = containerRef.current.clientWidth;
+        const height = containerRef.current.clientHeight;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        camera.position.set(0, 0, 0.1);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        containerRef.current.appendChild(renderer.domElement);
+
+        // Procedural Texture Generator for 360 Panorama Canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = 2048;
+        canvas.height = 1024;
+        const ctx = canvas.getContext('2d');
+        
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        bgGrad.addColorStop(0, '#120d0a');
+        bgGrad.addColorStop(0.5, '#2a1a10');
+        bgGrad.addColorStop(1, '#0a0705');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < 24; i++) {
+          const x = (i / 24) * canvas.width;
+          const y = canvas.height * 0.35 + Math.sin(i) * 40;
+          const radGrad = ctx.createRadialGradient(x, y, 5, x, y, 120);
+          radGrad.addColorStop(0, 'rgba(212, 175, 55, 0.8)');
+          radGrad.addColorStop(0.3, 'rgba(184, 146, 72, 0.3)');
+          radGrad.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = radGrad;
+          ctx.beginPath();
+          ctx.arc(x, y, 120, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const geometry = new THREE.SphereGeometry(500, 60, 40);
+        geometry.scale(-1, 1, 1);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        const sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
+
+        let animationFrameId;
+        const animate = () => {
+          animationFrameId = requestAnimationFrame(animate);
+
+          if (Date.now() - lastUserInteraction.current > 3000) {
+            lonLatRef.current.lon += 0.08;
+          }
+
+          lonLatRef.current.lat = Math.max(-85, Math.min(85, lonLatRef.current.lat));
+
+          const phi = THREE.MathUtils.degToRad(90 - lonLatRef.current.lat);
+          const theta = THREE.MathUtils.degToRad(lonLatRef.current.lon);
+
+          const target = new THREE.Vector3(
+            500 * Math.sin(phi) * Math.cos(theta),
+            500 * Math.cos(phi),
+            500 * Math.sin(phi) * Math.sin(theta)
+          );
+          camera.lookAt(target);
+          renderer.render(scene, camera);
+
+          const projected = hotspots.map(hs => {
+            const hVec = new THREE.Vector3(
+              500 * Math.cos(hs.pitch) * Math.cos(hs.yaw),
+              500 * Math.sin(hs.pitch),
+              500 * Math.cos(hs.pitch) * Math.sin(hs.yaw)
+            );
+            const clone = hVec.clone().project(camera);
+            const isBehind = clone.z > 1;
+            const screenX = (clone.x * 0.5 + 0.5) * width;
+            const screenY = (-(clone.y * 0.5) + 0.5) * height;
+            return { ...hs, x: screenX, y: screenY, visible: !isBehind && clone.z < 1 };
+          });
+          setScreenHotspots(projected);
+        };
+        animate();
+
+        const onPointerDown = (e) => {
+          isDraggingRef.current = true;
+          startMouseRef.current = { x: e.clientX, y: e.clientY };
+          lastUserInteraction.current = Date.now();
+        };
+
+        const onPointerMove = (e) => {
+          if (!isDraggingRef.current) return;
+          const deltaX = e.clientX - startMouseRef.current.x;
+          const deltaY = e.clientY - startMouseRef.current.y;
+          startMouseRef.current = { x: e.clientX, y: e.clientY };
+
+          lonLatRef.current.lon -= deltaX * 0.15;
+          lonLatRef.current.lat += deltaY * 0.15;
+          lastUserInteraction.current = Date.now();
+        };
+
+        const onPointerUp = () => { isDraggingRef.current = false; };
+
+        const handleResize = () => {
+          if (!containerRef.current) return;
+          const w = containerRef.current.clientWidth;
+          const h = containerRef.current.clientHeight;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+        };
+
+        const domElem = containerRef.current;
+        domElem.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+          cancelAnimationFrame(animationFrameId);
+          domElem.removeEventListener('pointerdown', onPointerDown);
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          window.removeEventListener('resize', handleResize);
+          if (domElem.contains(renderer.domElement)) {
+            domElem.removeChild(renderer.domElement);
+          }
+        };
+      }, []);
+
+      return (
+        <div ref={containerRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden">
+          {screenHotspots.map(hs => hs.visible && (
+            <button
+              key={hs.id}
+              onClick={() => onOpenHotspot(hs.category)}
+              style={{ left: `${hs.x}px`, top: `${hs.y}px` }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 group flex items-center gap-2 glass-panel px-3 py-1.5 rounded-full border border-brand-gold/40 hover:scale-110 transition-transform duration-300 shadow-xl"
+            >
+              <span className="w-3 h-3 rounded-full bg-brand-gold animate-ping inline-block" />
+              <span className="text-xs font-medium text-brand-cream whitespace-nowrap">{hs.title}</span>
+            </button>
+          ))}
+          
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 glass-pill px-4 py-2 rounded-full text-xs text-brand-cream/80 flex items-center gap-2 pointer-events-none">
+            <Icon name="Move" size={14} className="text-brand-gold animate-bounce" />
+            Drag or swipe to explore 360° dining room
+          </div>
+        </div>
+      );
+    };
+
+    const App = () => {
+      const [currentView, setCurrentView] = useState('home');
+      const [menuItems, setMenuItems] = useState(INITIAL_MENU);
+      const [selectedCategory, setSelectedCategory] = useState('All');
+      const [cart, setCart] = useState([]);
+      const [isCartOpen, setIsCartOpen] = useState(false);
+      const [orders, setOrders] = useState([]);
+      const [reservations, setReservations] = useState([]);
+      const [orderSuccess, setOrderSuccess] = useState(null);
+      const [resSuccess, setResSuccess] = useState(null);
+
+      const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      const addToCart = (dish) => {
+        setCart(prev => {
+          const existing = prev.find(i => i.id === dish.id);
+          if (existing) {
+            return prev.map(i => i.id === dish.id ? { ...i, quantity: i.quantity + 1 } : i);
+          }
+          return [...prev, { ...dish, quantity: 1 }];
+        });
+        setIsCartOpen(true);
+      };
+
+      const handleCheckout = (e) => {
+        e.preventDefault();
+        const newOrder = {
+          id: `WS-${Math.floor(1000 + Math.random() * 9000)}`,
+          customer: e.target.name.value,
+          phone: e.target.phone.value,
+          items: cart,
+          amount: cartTotal,
+          status: 'New',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setOrders([newOrder, ...orders]);
+        setOrderSuccess(newOrder.id);
+        setCart([]);
+        setIsCartOpen(false);
+      };
+
+      const handleReservation = (e) => {
+        e.preventDefault();
+        const newRes = {
+          id: `RES-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: e.target.name.value,
+          date: e.target.date.value,
+          time: e.target.time.value,
+          guests: e.target.guests.value,
+          status: 'Confirmed'
+        };
+        setReservations([newRes, ...reservations]);
+        setResSuccess(newRes);
+      };
+
+      return (
+        <div className="min-h-screen bg-brand-espresso text-brand-cream relative selection:bg-brand-gold selection:text-brand-espresso">
+          
+          {/* TOP NAVIGATION */}
+          <header className="fixed top-0 left-0 right-0 z-50 glass-panel border-b border-brand-gold/10">
+            <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+              <div 
+                onClick={() => setCurrentView('home')} 
+                className="cursor-pointer flex flex-col"
+              >
+                <span className="font-serif text-2xl tracking-widest text-brand-cream font-bold">{CONFIG.REST_NAME}</span>
+                <span className="text-[10px] tracking-[0.3em] uppercase text-brand-gold/80">{CONFIG.TAGLINE}</span>
+              </div>
+
+              <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
+                {['home', 'menu', 'reservations', 'admin'].map(view => (
+                  <button
+                    key={view}
+                    onClick={() => setCurrentView(view)}
+                    className={`capitalize tracking-wider transition-colors duration-200 ${
+                      currentView === view ? 'text-brand-gold font-semibold' : 'text-brand-cream/70 hover:text-brand-cream'
+                    }`}
+                  >
+                    {view}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setIsCartOpen(true)}
+                  className="relative p-2.5 rounded-full glass-pill border border-brand-gold/20 hover:border-brand-gold/50 transition-colors"
+                >
+                  <Icon name="ShoppingBag" size={18} className="text-brand-cream" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-brand-gold text-brand-espresso text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                      {cart.reduce((s, i) => s + i.quantity, 0)}
+                    </span>
+                  )}
+                </button>
+
+                <button 
+                  onClick={() => setCurrentView('reservations')}
+                  className="hidden sm:block px-5 py-2.5 rounded-full bg-brand-gold text-brand-espresso font-semibold text-xs uppercase tracking-wider hover:bg-brand-mutedGold transition-all shadow-lg"
+                >
+                  Reserve Table
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* MAIN PAGE VIEWS */}
+          <main className="pt-20">
+            {currentView === 'home' && (
+              <section className="relative h-screen w-full flex items-center justify-center">
+                <PanoramaViewer onOpenHotspot={(cat) => { setSelectedCategory(cat); setCurrentView('menu'); }} />
+
+                <div className="relative z-10 text-center max-w-3xl px-6 pointer-events-none">
+                  <span className="inline-block px-4 py-1.5 rounded-full glass-pill border border-brand-gold/30 text-xs font-semibold text-brand-gold tracking-widest uppercase mb-6 pointer-events-auto">
+                    Welcome to Willseat
+                  </span>
+                  <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tight text-brand-cream mb-6 leading-tight drop-shadow-md">
+                    Good Food.<br /><span className="italic font-normal text-brand-gold">Good Moments.</span>
+                  </h1>
+                  <p className="text-base md:text-lg text-brand-cream/80 max-w-xl mx-auto mb-8 font-light leading-relaxed">
+                    An intimate contemporary dining experience crafted around exceptional culinary arts, warm hospitality, and memorable ambiance.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-4 pointer-events-auto">
+                    <button 
+                      onClick={() => setCurrentView('menu')}
+                      className="px-8 py-3.5 rounded-full bg-brand-gold text-brand-espresso font-semibold text-sm uppercase tracking-wider hover:bg-brand-mutedGold transition-all shadow-xl"
+                    >
+                      Explore Menu
+                    </button>
+                    <button 
+                      onClick={() => setCurrentView('reservations')}
+                      className="px-8 py-3.5 rounded-full glass-panel border border-brand-cream/30 text-brand-cream font-semibold text-sm uppercase tracking-wider hover:bg-brand-cream/10 transition-all"
+                    >
+                      Reserve Table
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {currentView === 'menu' && (
+              <section className="max-w-7xl mx-auto px-6 py-12">
+                <div className="text-center max-w-2xl mx-auto mb-12">
+                  <h2 className="font-serif text-4xl font-bold text-brand-cream mb-3">Our Culinary Offerings</h2>
+                  <p className="text-brand-cream/60 text-sm">Seasonally inspired dishes combining local ingredients with modern culinary techniques.</p>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-3 mb-12">
+                  {['All', 'Starters', 'Main Courses', 'Signature Dishes', 'Desserts'].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-5 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all ${
+                        selectedCategory === cat 
+                          ? 'bg-brand-gold text-brand-espresso shadow-lg' 
+                          : 'glass-panel text-brand-cream/70 hover:text-brand-cream'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {menuItems
+                    .filter(i => selectedCategory === 'All' || i.category === selectedCategory)
+                    .map(dish => (
+                      <div key={dish.id} className="glass-panel rounded-2xl overflow-hidden border border-brand-gold/10 hover:border-brand-gold/30 transition-all duration-300 flex flex-col group">
+                        <div className="relative h-56 overflow-hidden">
+                          <img src={dish.image} alt={dish.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <span className="absolute top-4 right-4 glass-pill text-[10px] font-semibold text-brand-gold px-3 py-1 rounded-full uppercase tracking-wider">
+                            {dish.isDietary}
+                          </span>
+                        </div>
+                        <div className="p-6 flex-1 flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-start mb-2">
+                              <h3 className="font-serif text-xl font-semibold text-brand-cream">{dish.name}</h3>
+                              <span className="text-brand-gold font-semibold text-base">₦{dish.price.toLocaleString()}</span>
+                            </div>
+                            <p className="text-brand-cream/60 text-xs leading-relaxed mb-6">{dish.description}</p>
+                          </div>
+                          <button 
+                            onClick={() => addToCart(dish)}
+                            className="w-full py-3 rounded-xl glass-pill border border-brand-gold/30 text-brand-gold hover:bg-brand-gold hover:text-brand-espresso font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                          >
+                            <Icon name="Plus" size={16} /> Add to Order
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </section>
+            )}
+
+            {currentView === 'reservations' && (
+              <section className="max-w-3xl mx-auto px-6 py-16">
+                <div className="glass-panel p-8 md:p-12 rounded-3xl border border-brand-gold/20 shadow-2xl">
+                  <h2 className="font-serif text-3xl font-bold text-center text-brand-cream mb-2">Table Reservation</h2>
+                  <p className="text-center text-brand-cream/60 text-xs mb-8">Select your date and party size to secure your dining experience.</p>
+
+                  {resSuccess ? (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-brand-gold/20 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-gold">
+                        <Icon name="CheckCircle" size={32} />
+                      </div>
+                      <h3 className="font-serif text-2xl font-bold text-brand-cream mb-2">Reservation Confirmed</h3>
+                      <p className="text-brand-cream/70 text-xs mb-6">Reference ID: <span className="text-brand-gold font-mono">{resSuccess.id}</span></p>
+                      <p className="text-brand-cream/60 text-xs max-w-md mx-auto mb-8">
+                        Thank you {resSuccess.name}. We look forward to hosting you on {resSuccess.date} at {resSuccess.time} for {resSuccess.guests} guest(s).
+                      </p>
+                      <button 
+                        onClick={() => setResSuccess(null)} 
+                        className="px-6 py-2.5 rounded-full bg-brand-gold text-brand-espresso font-semibold text-xs uppercase"
+                      >
+                        Make Another Reservation
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleReservation} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-xs uppercase tracking-wider text-brand-cream/70 mb-2">Full Name</label>
+                          <input required name="name" type="text" className="w-full bg-brand-espresso/80 border border-brand-gold/20 rounded-xl px-4 py-3 text-sm text-brand-cream focus:outline-none focus:border-brand-gold" placeholder="John Doe" />
+                        </div>
+                        <div>
+                          <label className="block text-xs uppercase tracking-wider text-brand-cream/70 mb-2">Party Size</label>
+                          <select name="guests" className="w-full bg-brand-espresso/80 border border-brand-gold/20 rounded-xl px-4 py-3 text-sm text-brand-cream focus:outline-none focus:border-brand-gold">
+                            {[1,2,3,4,5,6,8,10].map(n => <option key={n} value={n}>{n} Guest{n > 1 ? 's' : ''}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-xs uppercase tracking-wider text-brand-cream/70 mb-2">Date</label>
+                          <input required name="date" type="date" className="w-full bg-brand-espresso/80 border border-brand-gold/20 rounded-xl px-4 py-3 text-sm text-brand-cream focus:outline-none focus:border-brand-gold" />
+                        </div>
+                        <div>
+                          <label className="block text-xs uppercase tracking-wider text-brand-cream/70 mb-2">Time</label>
+                          <input required name="time" type="time" className="w-full bg-brand-espresso/80 border border-brand-gold/20 rounded-xl px-4 py-3 text-sm text-brand-cream focus:outline-none focus:border-brand-gold" />
+                        </div>
+                      </div>
+
+                      <button type="submit" className="w-full py-4 rounded-xl bg-brand-gold text-brand-espresso font-semibold text-xs uppercase tracking-widest hover:bg-brand-mutedGold transition-all">
+                        Confirm Table Reservation
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {currentView === 'admin' && (
+              <section className="max-w-7xl mx-auto px-6 py-12">
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h2 className="font-serif text-3xl font-bold text-brand-cream">Restaurant Administration</h2>
+                    <p className="text-brand-cream/60 text-xs">Live order management and table reservation control</p>
+                  </div>
+                  <button 
+                    onClick={() => { setOrders([]); setReservations([]); }}
+                    className="px-4 py-2 rounded-lg glass-panel border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
+                  >
+                    Clear Demo Data
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="glass-panel p-6 rounded-2xl border border-brand-gold/10">
+                    <h3 className="font-serif text-xl font-semibold text-brand-gold mb-4">Customer Orders ({orders.length})</h3>
+                    {orders.length === 0 ? (
+                      <p className="text-brand-cream/40 text-xs py-8 text-center">No active orders placed yet.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {orders.map(o => (
+                          <div key={o.id} className="p-4 rounded-xl bg-brand-espresso/60 border border-brand-gold/10">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <span className="font-mono text-xs text-brand-gold">{o.id}</span>
+                                <h4 className="font-semibold text-sm">{o.customer}</h4>
+                              </div>
+                              <span className="px-2.5 py-1 rounded-full bg-brand-gold/20 text-brand-gold text-[10px] uppercase font-bold">{o.status}</span>
+                            </div>
+                            <p className="text-xs text-brand-cream/60 mb-2">Total: ₦{o.amount.toLocaleString()}</p>
+                            <div className="text-[11px] text-brand-cream/40">
+                              {o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="glass-panel p-6 rounded-2xl border border-brand-gold/10">
+                    <h3 className="font-serif text-xl font-semibold text-brand-gold mb-4">Reservations ({reservations.length})</h3>
+                    {reservations.length === 0 ? (
+                      <p className="text-brand-cream/40 text-xs py-8 text-center">No table reservations created yet.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {reservations.map(r => (
+                          <div key={r.id} className="p-4 rounded-xl bg-brand-espresso/60 border border-brand-gold/10 flex justify-between items-center">
+                            <div>
+                              <span className="font-mono text-xs text-brand-gold">{r.id}</span>
+                              <h4 className="font-semibold text-sm">{r.name}</h4>
+                              <p className="text-xs text-brand-cream/60">{r.date} at {r.time} ({r.guests} guests)</p>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] uppercase font-bold">{r.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+          </main>
+
+          {}
+          {isCartOpen && (
+            <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-md bg-brand-espresso h-full border-l border-brand-gold/20 p-6 flex flex-col justify-between overflow-y-auto">
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-serif text-2xl font-bold text-brand-cream">Your Order</h3>
+                    <button onClick={() => setIsCartOpen(false)} className="text-brand-cream/60 hover:text-brand-cream">
+                      <Icon name="X" size={20} />
+                    </button>
+                  </div>
+
+                  {cart.length === 0 ? (
+                    <p className="text-brand-cream/40 text-xs py-12 text-center">Your dining cart is empty.</p>
+                  ) : (
+                    <div className="space-y-4 mb-6">
+                      {cart.map(item => (
+                        <div key={item.id} className="flex justify-between items-center p-3 rounded-xl glass-panel">
+                          <div>
+                            <h4 className="text-xs font-semibold">{item.name}</h4>
+                            <p className="text-[10px] text-brand-gold">₦{item.price.toLocaleString()} x {item.quantity}</p>
+                          </div>
+                          <span className="font-semibold text-xs">₦{(item.price * item.quantity).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {cart.length > 0 && (
+                  <form onSubmit={handleCheckout} className="border-t border-brand-gold/10 pt-4 space-y-4">
+                    <div className="flex justify-between text-sm font-semibold mb-2">
+                      <span>Subtotal</span>
+                      <span className="text-brand-gold">₦{cartTotal.toLocaleString()}</span>
+                    </div>
+
+                    <input required name="name" type="text" placeholder="Your Name" className="w-full bg-brand-cocoa border border-brand-gold/20 rounded-lg px-3 py-2 text-xs text-brand-cream" />
+                    <input required name="phone" type="tel" placeholder="Phone Number" className="w-full bg-brand-cocoa border border-brand-gold/20 rounded-lg px-3 py-2 text-xs text-brand-cream" />
+
+                    <button type="submit" className="w-full py-3 rounded-xl bg-brand-gold text-brand-espresso font-semibold text-xs uppercase tracking-wider">
+                      Place Order
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
+
+          {}
+          {orderSuccess && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <div className="glass-panel p-8 rounded-3xl max-w-sm w-full text-center border border-brand-gold/30">
+                <div className="w-12 h-12 bg-brand-gold/20 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-gold">
+                  <Icon name="CheckCircle" size={28} />
+                </div>
+                <h3 className="font-serif text-xl font-bold mb-1">Order Received</h3>
+                <p className="text-xs text-brand-gold font-mono mb-4">Order #{orderSuccess}</p>
+                <p className="text-xs text-brand-cream/60 mb-6">Your order has been recorded in the live administrative panel.</p>
+                <button onClick={() => setOrderSuccess(null)} className="px-6 py-2.5 rounded-full bg-brand-gold text-brand-espresso font-semibold text-xs uppercase">
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          <footer className="border-t border-brand-gold/10 bg-brand-espresso/80 py-12 px-6 mt-20">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
+              <div>
+                <h4 className="font-serif text-lg font-bold text-brand-cream">{CONFIG.REST_NAME}</h4>
+                <p className="text-xs text-brand-cream/50 mt-1">{CONFIG.LOCATION}</p>
+              </div>
+
+              <div className="glass-panel px-6 py-4 rounded-2xl border border-brand-gold/20 text-center md:text-right">
+                <p className="text-[10px] uppercase tracking-widest text-brand-cream/60">Designed & Developed by</p>
+                <p className="text-xs font-semibold text-brand-gold mt-0.5">Willstech</p>
+                <div className="flex items-center justify-center md:justify-end gap-4 mt-2 text-[11px] text-brand-cream/80">
+                  <span>Phone: {CONFIG.PHONE}</span>
+                  <span>•</span>
+                  <span>Email: {CONFIG.EMAIL}</span>
+                </div>
+              </div>
+            </div>
+          </footer>
+
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
+```
