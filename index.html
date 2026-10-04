@@ -1,0 +1,914 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  Lucide, 
+  Utensils, 
+  Calendar, 
+  Clock, 
+  Users, 
+  Sparkles, 
+  Volume2, 
+  VolumeX, 
+  ChefHat, 
+  Star, 
+  MapPin, 
+  Phone, 
+  CheckCircle2, 
+  ChevronRight, 
+  Flame, 
+  Wine, 
+  Compass, 
+  Search, 
+  X,
+  ArrowUpRight,
+  ShieldCheck,
+  Award
+} from 'lucide-react';
+
+const ParticleCanvas = ({ isLowMotion }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (isLowMotion) return;
+
+    let scene, camera, renderer, particles, animationFrameId;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Dynamically load Three.js if not available globally
+    const initThree = () => {
+      if (!window.THREE) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+        script.onload = setupScene;
+        document.head.appendChild(script);
+      } else {
+        setupScene();
+      }
+    };
+
+    const setupScene = () => {
+      const THREE = window.THREE;
+      if (!THREE || !canvas) return;
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 30;
+
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      // Particles Geometry
+      const count = 120;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+      const scales = new Float32Array(count);
+      const speeds = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 60;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 60;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 40;
+
+        scales[i] = Math.random() * 0.8 + 0.2;
+
+        speeds[i * 3] = (Math.random() - 0.5) * 0.015;
+        speeds[i * 3 + 1] = Math.random() * 0.02 + 0.005; // upward floating
+        speeds[i * 3 + 2] = (Math.random() - 0.5) * 0.015;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('scale', new THREE.BufferAttribute(scales, 1));
+
+      // Golden warm glowing ember texture
+      const canvasTexture = document.createElement('canvas');
+      canvasTexture.width = 32;
+      canvasTexture.height = 32;
+      const ctx = canvasTexture.getContext('2d');
+      const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      gradient.addColorStop(0, 'rgba(234, 179, 8, 1)');
+      gradient.addColorStop(0.4, 'rgba(217, 119, 6, 0.6)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 32, 32);
+
+      const texture = new THREE.CanvasTexture(canvasTexture);
+
+      const material = new THREE.PointsMaterial({
+        size: 1.2,
+        map: texture,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      particles = new THREE.Points(geometry, material);
+      scene.add(particles);
+
+      const handleResize = () => {
+        if (!canvas) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      // Mouse Parallax Effect
+      let mouseX = 0;
+      let mouseY = 0;
+      const handleMouseMove = (e) => {
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 4;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 4;
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+
+      const animate = () => {
+        animationFrameId = requestAnimationFrame(animate);
+
+        // Smooth camera movement towards mouse
+        camera.position.x += (mouseX - camera.position.x) * 0.03;
+        camera.position.y += (-mouseY - camera.position.y) * 0.03;
+
+        const posAttr = particles.geometry.attributes.position;
+        const posArray = posAttr.array;
+
+        for (let i = 0; i < count; i++) {
+          posArray[i * 3 + 1] += speeds[i * 3 + 1]; // Float upwards
+          posArray[i * 3] += Math.sin(Date.now() * 0.001 + i) * 0.005; // Slight sway
+
+          // Reset particle if it floats too high
+          if (posArray[i * 3 + 1] > 30) {
+            posArray[i * 3 + 1] = -30;
+            posArray[i * 3] = (Math.random() - 0.5) * 60;
+          }
+        }
+
+        posAttr.needsUpdate = true;
+        renderer.render(scene, camera);
+      };
+
+      animate();
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('mousemove', handleMouseMove);
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      };
+    };
+
+    initThree();
+  }, [isLowMotion]);
+
+  if (isLowMotion) return null;
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="fixed inset-0 pointer-events-none z-0 opacity-60"
+    />
+  );
+};
+
+const TiltCard = ({ children, className = "", isLowMotion }) => {
+  const cardRef = useRef(null);
+  const [transform, setTransform] = useState("perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)");
+  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+
+  const handleMouseMove = (e) => {
+    if (isLowMotion || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const rotateX = ((y - centerY) / centerY) * -10; // Max 10 deg tilt
+    const rotateY = ((x - centerX) / centerX) * 10;
+
+    setTransform(`perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.02, 1.02, 1.02)`);
+    
+    // Calculate glare percentage
+    const glareX = (x / rect.width) * 100;
+    const glareY = (y / rect.height) * 100;
+    setGlare({ x: glareX, y: glareY, opacity: 0.15 });
+  };
+
+  const handleMouseLeave = () => {
+    if (isLowMotion) return;
+    setTransform("perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)");
+    setGlare({ x: 50, y: 50, opacity: 0 });
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transform,
+        transition: "transform 0.15s cubic-bezier(0.2, 0, 0.2, 1)",
+        transformStyle: "preserve-3d"
+      }}
+      className={`relative overflow-hidden rounded-2xl border border-amber-500/20 bg-neutral-900/80 backdrop-blur-md transition-shadow duration-300 hover:shadow-2xl hover:shadow-amber-500/10 ${className}`}
+    >
+      {/* Glare effect overlay */}
+      {!isLowMotion && (
+        <div
+          className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(251, 191, 36, ${glare.opacity}), transparent 60%)`
+          }}
+        />
+      )}
+      {children}
+    </div>
+  );
+};
+
+const createAudioFX = () => {
+  let audioCtx = null;
+
+  const init = () => {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  };
+
+  const playHover = () => {
+    try {
+      init();
+      if (!audioCtx || audioCtx.state === 'suspended') return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.05);
+    } catch (e) {
+      // Audio context suppressed or unsupported
+    }
+  };
+
+  const playClick = () => {
+    try {
+      init();
+      if (!audioCtx || audioCtx.state === 'suspended') return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    } catch (e) {
+      // Audio suppressed
+    }
+  };
+
+  return { playHover, playClick };
+};
+
+const MENU_ITEMS = [
+  {
+    id: 1,
+    name: "Truffle Infused Wagyu A5",
+    category: "Mains",
+    price: "$185",
+    description: "Pan-seared Miyazaki Wagyu with shaved black winter truffles, bone marrow reduction, and smoked potato mousseline.",
+    rating: 4.9,
+    badge: "Chef's Signature",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800",
+    prepTime: "25 min"
+  },
+  {
+    id: 2,
+    name: "Golden Osetra Caviar Tart",
+    category: "Starters",
+    price: "$120",
+    description: "Chilled buckwheat crisp, cultured creme fraiche, cured egg yolk, topped with sustainably harvested Royal Osetra caviar.",
+    rating: 4.8,
+    badge: "Popular",
+    image: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&q=80&w=800",
+    prepTime: "15 min"
+  },
+  {
+    id: 3,
+    name: "Wild Baltic Sea Bass",
+    category: "Mains",
+    price: "$92",
+    description: "Crispy skin sea bass, saffron fumet, baby fennel confit, and fermented sea buckthorn oil.",
+    rating: 4.7,
+    badge: "Seasonal",
+    image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800",
+    prepTime: "20 min"
+  },
+  {
+    id: 4,
+    name: "Smoked Pear & Smoked Caramel Parfait",
+    category: "Desserts",
+    price: "$38",
+    description: "Valrhona dark chocolate dome, warm pear nectar, hazelnut praline, and liquid nitrogen gold dust.",
+    rating: 4.9,
+    badge: "Decadent",
+    image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=800",
+    prepTime: "12 min"
+  },
+  {
+    id: 5,
+    name: "Vintage Dom Pérignon Reserve 2012",
+    category: "Drinks",
+    price: "$450",
+    description: "Complex notes of white flowers, citrus peel, and toasted brioche with a luminous finish.",
+    rating: 5.0,
+    badge: "Rare Vintage",
+    image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=800",
+    prepTime: "Instant"
+  },
+  {
+    id: 6,
+    name: "Aged Smoked Duck Breast",
+    category: "Mains",
+    price: "$98",
+    description: "Dry-aged for 21 days, glazed with cherry reduction, served alongside roasted parsnips.",
+    rating: 4.8,
+    badge: "New Creation",
+    image: "https://images.unsplash.com/photo-1514944288352-fffac99f0bdf?auto=format&fit=crop&q=80&w=800",
+    prepTime: "22 min"
+  }
+];
+
+const EXPERIENCES = [
+  {
+    title: "The Chef's Tasting Table",
+    description: "An exclusive 11-course culinary journey orchestrated right before your eyes by Executive Chef Julian Vance.",
+    capacity: "2-6 Guests",
+    duration: "3.5 Hours",
+    price: "$350 / person",
+    tag: "Exclusive"
+  },
+  {
+    title: "Sommelier Private Reserve",
+    description: "Guided wine pairing featuring rare, cellared vintages paired with curated artisanal bites.",
+    capacity: "2-10 Guests",
+    duration: "2 Hours",
+    price: "$220 / person",
+    tag: "Sommelier Choice"
+  },
+  {
+    title: "Starlight Terrace Dining",
+    description: "Open-sky romantic dining overlooking the illuminated skyline with bespoke ambient soundscapes.",
+    capacity: "2 Guests",
+    duration: "2.5 Hours",
+    price: "$280 / couple",
+    tag: "Romantic"
+  }
+];
+
+export default function WillseatApp() {
+  const [activeTab, setActiveTab] = useState('home');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isLowMotion, setIsLowMotion] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [reservation, setReservation] = useState({
+    date: '2026-10-15',
+    time: '19:30',
+    guests: '2',
+    seating: 'Main Dining Room',
+    notes: ''
+  });
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [floatingBadge, setFloatingBadge] = useState('Live Availability: 3 Tables Remaining Tonight');
+
+  const soundFX = useMemo(() => createAudioFX(), []);
+
+  // Detect user preference for reduced motion
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setIsLowMotion(mediaQuery.matches);
+
+    const handleChange = (e) => setIsLowMotion(e.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  // Audio interaction trigger
+  const handleInteraction = (type = 'hover') => {
+    if (!soundEnabled || isLowMotion) return;
+    if (type === 'hover') soundFX.playHover();
+    if (type === 'click') soundFX.playClick();
+  };
+
+  const handleReservationSubmit = (e) => {
+    e.preventDefault();
+    handleInteraction('click');
+    setIsSubmitted(true);
+  };
+
+  const categories = ['All', 'Starters', 'Mains', 'Desserts', 'Drinks'];
+
+  const filteredMenu = selectedCategory === 'All' 
+    ? MENU_ITEMS 
+    : MENU_ITEMS.filter(item => item.category === selectedCategory);
+
+  return (
+    <div className={`min-h-screen bg-neutral-950 text-amber-50 font-sans selection:bg-amber-500/30 selection:text-amber-200 relative overflow-x-hidden ${isLowMotion ? 'reduce-motion' : ''}`}>
+      
+      {/* Dynamic Embedded CSS Styles for keyframes & transitions */}
+      <style>{`
+        @keyframes floatSlow {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-12px) rotate(1deg); }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.4; filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.3)); }
+          50% { opacity: 0.8; filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.6)); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes badgePulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+
+        .animate-float {
+          animation: floatSlow 6s ease-in-out infinite;
+        }
+        .animate-pulse-glow {
+          animation: pulseGlow 4s ease-in-out infinite;
+        }
+        .animate-shimmer {
+          background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(251, 191, 36, 0.15) 50%, rgba(255,255,255,0) 100%);
+          background-size: 200% 100%;
+          animation: shimmer 3s infinite;
+        }
+        .animate-badge {
+          animation: badgePulse 3s ease-in-out infinite;
+        }
+
+        .view-transition-enter {
+          opacity: 0;
+          transform: translateY(16px) scale(0.98);
+        }
+        .view-transition-active {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          transition: opacity 400ms cubic-bezier(0.16, 1, 0.3, 1), transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Respect Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+          .animate-float, .animate-pulse-glow, .animate-shimmer, .animate-badge {
+            animation: none !important;
+          }
+          * {
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+          }
+        }
+      `}</style>
+
+      {}
+      <ParticleCanvas isLowMotion={isLowMotion} />
+
+      {/* Floating Animated Status Bar */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xl pointer-events-auto">
+        <div className="bg-neutral-900/90 backdrop-blur-xl border border-amber-500/30 rounded-full px-4 py-2 flex items-center justify-between shadow-2xl shadow-black/80 text-xs sm:text-sm">
+          <div className="flex items-center space-x-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            </span>
+            <span className="text-amber-200/90 font-medium tracking-wide truncate">{floatingBadge}</span>
+          </div>
+          
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            onMouseEnter={() => handleInteraction('hover')}
+            className="flex items-center space-x-1 text-neutral-400 hover:text-amber-400 transition-colors pl-2 border-l border-neutral-800"
+            title="Toggle Ambient Sounds"
+          >
+            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            <span className="hidden sm:inline text-[10px] uppercase tracking-wider">{soundEnabled ? 'Audio On' : 'Audio Off'}</span>
+          </button>
+        </div>
+      </div>
+
+      {}
+      <header className="sticky top-0 z-40 bg-neutral-950/70 backdrop-blur-md border-b border-neutral-800/60 pt-16 pb-4">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div 
+            className="flex items-center space-x-3 cursor-pointer group"
+            onClick={() => { setActiveTab('home'); handleInteraction('click'); }}
+          >
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-600 to-amber-300 p-[1px] shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform duration-300">
+              <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center">
+                <Flame size={20} className="text-amber-400 animate-pulse" />
+              </div>
+            </div>
+            <div>
+              <span className="text-2xl font-serif tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 font-bold uppercase">
+                WILLSEAT
+              </span>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 -mt-1">Haute Gastronomie</p>
+            </div>
+          </div>
+
+          <nav className="flex items-center space-x-1 sm:space-x-2 bg-neutral-900/60 p-1.5 rounded-full border border-neutral-800/80">
+            {[
+              { id: 'home', label: 'Experience' },
+              { id: 'menu', label: 'Culinary Menu' },
+              { id: 'reserve', label: 'Reservations' },
+              { id: 'about', label: 'Story' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); handleInteraction('click'); }}
+                onMouseEnter={() => handleInteraction('hover')}
+                className={`relative px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? 'text-neutral-950 font-semibold'
+                    : 'text-neutral-400 hover:text-amber-200'
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <span className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 rounded-full shadow-lg shadow-amber-500/25 -z-10 transition-all duration-300" />
+                )}
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      {}
+      <main className="max-w-7xl mx-auto px-6 py-10 relative z-10">
+        
+        {/* VIEW 1: HOME / EXPERIENCE */}
+        {activeTab === 'home' && (
+          <div className="space-y-24 view-transition-active">
+            {/* Hero Section */}
+            <section className="relative min-h-[75vh] flex items-center justify-center text-center overflow-hidden rounded-3xl border border-neutral-800/80 p-8 md:p-16 bg-neutral-900/30">
+              <div className="absolute inset-0 z-0">
+                <img 
+                  src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=1920" 
+                  alt="Atmospheric Restaurant Interior"
+                  className="w-full h-full object-cover opacity-20 scale-105 transition-transform duration-1000 hover:scale-100"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent" />
+              </div>
+
+              <div className="relative z-10 max-w-3xl space-y-8 animate-float">
+                <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 backdrop-blur-md">
+                  <Sparkles size={14} className="text-amber-400" />
+                  <span className="text-xs tracking-widest uppercase text-amber-300 font-semibold">Awarded Three Michelin Stars 2026</span>
+                </div>
+
+                <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif tracking-tight leading-tight text-neutral-100 font-light">
+                  A Symphony of <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600">Taste & Atmosphere</span>
+                </h1>
+
+                <p className="text-neutral-400 text-base sm:text-lg max-w-2xl mx-auto font-light leading-relaxed">
+                  Immerse yourself in a multisensory dining experience where culinary innovation meets timeless elegance. Reserve your table at Willseat today.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                  <button
+                    onClick={() => { setActiveTab('reserve'); handleInteraction('click'); }}
+                    onMouseEnter={() => handleInteraction('hover')}
+                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 to-amber-300 text-neutral-950 font-semibold tracking-wide shadow-xl shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center space-x-2"
+                  >
+                    <span>Reserve a Table</span>
+                    <ChevronRight size={18} />
+                  </button>
+
+                  <button
+                    onClick={() => { setActiveTab('menu'); handleInteraction('click'); }}
+                    onMouseEnter={() => handleInteraction('hover')}
+                    className="w-full sm:w-auto px-8 py-4 rounded-full border border-amber-500/30 hover:border-amber-400/60 bg-neutral-900/60 text-amber-200 hover:bg-neutral-800/80 transition-all duration-300 flex items-center justify-center space-x-2 backdrop-blur-md"
+                  >
+                    <span>Explore Tasting Menu</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Curated Experiences Grid with 3D Tilt */}
+            <section className="space-y-10">
+              <div className="text-center space-y-3">
+                <span className="text-xs uppercase tracking-[0.3em] text-amber-400 font-semibold">Bespeak Offerings</span>
+                <h2 className="text-3xl md:text-4xl font-serif">Curated Culinary Journeys</h2>
+                <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent mx-auto" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {EXPERIENCES.map((exp, idx) => (
+                  <TiltCard key={idx} isLowMotion={isLowMotion} className="p-8 flex flex-col justify-between group">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          {exp.tag}
+                        </span>
+                        <span className="text-xs text-neutral-400">{exp.capacity}</span>
+                      </div>
+                      <h3 className="text-xl font-serif text-amber-100 group-hover:text-amber-300 transition-colors">{exp.title}</h3>
+                      <p className="text-sm text-neutral-400 leading-relaxed">{exp.description}</p>
+                    </div>
+
+                    <div className="pt-8 border-t border-neutral-800/80 mt-6 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-widest">Price</p>
+                        <p className="text-sm font-semibold text-amber-200">{exp.price}</p>
+                      </div>
+                      <button
+                        onClick={() => { setActiveTab('reserve'); handleInteraction('click'); }}
+                        onMouseEnter={() => handleInteraction('hover')}
+                        className="p-3 rounded-full bg-neutral-800 text-amber-400 group-hover:bg-amber-500 group-hover:text-neutral-950 transition-all duration-300"
+                      >
+                        <ArrowUpRight size={18} />
+                      </button>
+                    </div>
+                  </TiltCard>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {}
+        {activeTab === 'menu' && (
+          <div className="space-y-12 view-transition-active">
+            <div className="text-center space-y-4 max-w-2xl mx-auto">
+              <span className="text-xs uppercase tracking-[0.3em] text-amber-400 font-semibold">Seasonal Selection</span>
+              <h1 className="text-4xl md:text-5xl font-serif">The Culinary Atelier</h1>
+              <p className="text-neutral-400 text-sm">Every dish is crafted using seasonal, locally-harvested organic ingredients and sustainable sea life.</p>
+            </div>
+
+            {/* Category Filter Tabs */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => { setSelectedCategory(cat); handleInteraction('click'); }}
+                  onMouseEnter={() => handleInteraction('hover')}
+                  className={`px-5 py-2 rounded-full text-xs font-medium tracking-wider transition-all duration-300 ${
+                    selectedCategory === cat
+                      ? 'bg-amber-400 text-neutral-950 shadow-md shadow-amber-500/20'
+                      : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:border-amber-500/30 hover:text-amber-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Menu Grid with 3D Tilt & Micro Interactions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredMenu.map((item) => (
+                <TiltCard key={item.id} isLowMotion={isLowMotion} className="flex flex-col h-full group">
+                  <div className="relative h-52 overflow-hidden">
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent opacity-80" />
+                    <span className="absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-neutral-900/80 text-amber-400 backdrop-blur-md border border-amber-500/20">
+                      {item.badge}
+                    </span>
+                    <span className="absolute bottom-4 right-4 text-xl font-serif font-bold text-amber-300 drop-shadow-md">
+                      {item.price}
+                    </span>
+                  </div>
+
+                  <div className="p-6 flex flex-col justify-between flex-grow space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-serif font-medium text-amber-100 group-hover:text-amber-300 transition-colors">{item.name}</h3>
+                        <div className="flex items-center space-x-1 text-amber-400 text-xs">
+                          <Star size={14} className="fill-amber-400" />
+                          <span>{item.rating}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-neutral-400 leading-relaxed">{item.description}</p>
+                    </div>
+
+                    <div className="pt-4 border-t border-neutral-800/60 flex items-center justify-between text-xs text-neutral-500">
+                      <span className="flex items-center space-x-1">
+                        <Clock size={13} />
+                        <span>Prep: {item.prepTime}</span>
+                      </span>
+                      <button 
+                        onClick={() => handleInteraction('click')}
+                        className="text-amber-400 hover:text-amber-300 font-medium transition-colors flex items-center space-x-1"
+                      >
+                        <span>Add to Tasting Note</span>
+                      </button>
+                    </div>
+                  </div>
+                </TiltCard>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {}
+        {activeTab === 'reserve' && (
+          <div className="max-w-2xl mx-auto space-y-8 view-transition-active">
+            <div className="text-center space-y-3">
+              <span className="text-xs uppercase tracking-[0.3em] text-amber-400 font-semibold">Table Reservation</span>
+              <h1 className="text-4xl font-serif">Secure Your Dining Table</h1>
+              <p className="text-neutral-400 text-sm">Reservations open 30 days in advance. Live table availability is updated continuously.</p>
+            </div>
+
+            <div className="bg-neutral-900/80 border border-amber-500/20 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+
+              {isSubmitted ? (
+                <div className="text-center py-12 space-y-6">
+                  <div className="w-16 h-16 bg-amber-500/20 border border-amber-400/40 rounded-full flex items-center justify-center mx-auto text-amber-400 animate-bounce">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h3 className="text-2xl font-serif text-amber-200">Reservation Confirmed</h3>
+                  <p className="text-sm text-neutral-400 max-w-md mx-auto">
+                    We look forward to welcoming you on <strong className="text-amber-300">{reservation.date}</strong> at <strong className="text-amber-300">{reservation.time}</strong> for <strong className="text-amber-300">{reservation.guests} guests</strong>.
+                  </p>
+                  <button
+                    onClick={() => { setIsSubmitted(false); handleInteraction('click'); }}
+                    className="px-6 py-2.5 rounded-full border border-amber-500/30 text-amber-300 text-xs tracking-wider uppercase hover:bg-amber-500/10 transition-colors"
+                  >
+                    Make Another Reservation
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleReservationSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-neutral-400 flex items-center space-x-2">
+                        <Calendar size={14} className="text-amber-400" />
+                        <span>Date</span>
+                      </label>
+                      <input 
+                        type="date"
+                        value={reservation.date}
+                        onChange={(e) => setReservation({ ...reservation, date: e.target.value })}
+                        className="w-full bg-neutral-950/80 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 focus:outline-none focus:border-amber-400 transition-colors"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-neutral-400 flex items-center space-x-2">
+                        <Clock size={14} className="text-amber-400" />
+                        <span>Time</span>
+                      </label>
+                      <select 
+                        value={reservation.time}
+                        onChange={(e) => setReservation({ ...reservation, time: e.target.value })}
+                        className="w-full bg-neutral-950/80 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 focus:outline-none focus:border-amber-400 transition-colors"
+                      >
+                        <option value="18:00">18:00 (Dinner)</option>
+                        <option value="19:30">19:30 (Dinner)</option>
+                        <option value="21:00">21:00 (Late Supper)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-neutral-400 flex items-center space-x-2">
+                        <Users size={14} className="text-amber-400" />
+                        <span>Guests</span>
+                      </label>
+                      <select 
+                        value={reservation.guests}
+                        onChange={(e) => setReservation({ ...reservation, guests: e.target.value })}
+                        className="w-full bg-neutral-950/80 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 focus:outline-none focus:border-amber-400 transition-colors"
+                      >
+                        <option value="1">1 Person</option>
+                        <option value="2">2 People</option>
+                        <option value="4">4 People</option>
+                        <option value="6">6+ Private Dining</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-neutral-400 flex items-center space-x-2">
+                        <Compass size={14} className="text-amber-400" />
+                        <span>Seating Atmosphere</span>
+                      </label>
+                      <select 
+                        value={reservation.seating}
+                        onChange={(e) => setReservation({ ...reservation, seating: e.target.value })}
+                        className="w-full bg-neutral-950/80 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 focus:outline-none focus:border-amber-400 transition-colors"
+                      >
+                        <option value="Main Dining Room">Main Dining Room</option>
+                        <option value="Chef Counter">Chef's Counter</option>
+                        <option value="Starlight Terrace">Starlight Terrace</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium uppercase tracking-wider text-neutral-400">Dietary Preferences or Special Occasions</label>
+                    <textarea 
+                      rows={3}
+                      placeholder="e.g. Anniversary celebration, gluten-free preference..."
+                      value={reservation.notes}
+                      onChange={(e) => setReservation({ ...reservation, notes: e.target.value })}
+                      className="w-full bg-neutral-950/80 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 focus:outline-none focus:border-amber-400 transition-colors resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    onMouseEnter={() => handleInteraction('hover')}
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-300 text-neutral-950 font-semibold tracking-wide shadow-xl shadow-amber-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 flex items-center justify-center space-x-2"
+                  >
+                    <Sparkles size={18} />
+                    <span>Confirm Reservation</span>
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
+        {}
+        {activeTab === 'about' && (
+          <div className="space-y-16 max-w-4xl mx-auto view-transition-active">
+            <div className="text-center space-y-4">
+              <span className="text-xs uppercase tracking-[0.3em] text-amber-400 font-semibold">Our Heritage</span>
+              <h1 className="text-4xl md:text-5xl font-serif">Artisanal Mastery</h1>
+              <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent mx-auto" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+              <div className="relative rounded-3xl overflow-hidden border border-neutral-800">
+                <img 
+                  src="https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=80&w=800" 
+                  alt="Executive Chef" 
+                  className="w-full h-auto object-cover hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent opacity-60" />
+                <div className="absolute bottom-6 left-6 right-6 p-4 bg-neutral-900/80 backdrop-blur-md rounded-2xl border border-neutral-800">
+                  <p className="text-sm font-serif text-amber-200">Executive Chef Julian Vance</p>
+                  <p className="text-xs text-neutral-400">3-Michelin Stars Recipient</p>
+                </div>
+              </div>
+
+              <div className="space-y-6 text-neutral-300 leading-relaxed font-light text-sm md:text-base">
+                <p>
+                  Founded in 2018, Willseat was conceived with a single visionary mission: to create an unforgettable sanctuary where culinary execution meets artistic emotion.
+                </p>
+                <p>
+                  Every element—from our hand-forged Japanese knives to our custom-curated ambient audio soundscapes—is meticulously calibrated to transcend traditional fine dining into an immersive sensory story.
+                </p>
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-800">
+                  <div className="space-y-1">
+                    <p className="text-2xl font-serif text-amber-400">100%</p>
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider">Organic Sourcing</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-2xl font-serif text-amber-400">3 Stars</p>
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider">Michelin Guide</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {}
+      <footer className="border-t border-neutral-900 bg-neutral-950/80 mt-20 relative z-10 py-12">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-xs text-neutral-500">
+          <div className="space-y-3">
+            <span className="text-lg font-serif text-amber-200">WILLSEAT</span>
+            <p className="text-neutral-400">Fine dining engineered for human connection.</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-amber-400 font-semibold uppercase tracking-wider">Location & Hours</p>
+            <p className="flex items-center space-x-1"><MapPin size={12}/> <span>450 Grand Avenue, Culinary District</span></p>
+            <p>Tue - Sun: 18:00 - 23:30</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-amber-400 font-semibold uppercase tracking-wider">Direct Inquiries</p>
+            <p className="flex items-center space-x-1"><Phone size={12}/> <span>+1 (800) 555-SEAT</span></p>
+            <p>concierge@willseat.com</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
